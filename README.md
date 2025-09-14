@@ -63,17 +63,30 @@ For GitHub Actions, configure these secrets:
 The service generates `free_electricity.json` containing an array of events with the following structure:
 
 ```json
-[
-  {
-    "code": "EVENT_CODE",
-    "endAt": "2025-01-15T14:00:00Z",
-    "isEventParticipant": true,
-    "name": "Free Electricity Event",
-    "startAt": "2025-01-15T13:00:00Z",
-    "__typename": "CustomerFlexibilityCampaignEvent"
-  }
-]
+{
+  "data": [
+    {
+      "start": "2024-08-15T12:00:00.000Z",
+      "end": "2024-08-15T13:00:00.000Z",
+      "code": "1"
+    },
+    {
+      "start": "2024-11-27T11:00:00.000Z",
+      "end": "2024-11-27T12:00:00.000Z",
+      "code": "2",
+      "is_test": true
+    }
+  ]
+}
 ```
+
+### Fields
+
+- **data**: Array wrapper containing all events
+- **start**: Event start time in UTC (ISO 8601 format with milliseconds)
+- **end**: Event end time in UTC (ISO 8601 format with milliseconds)  
+- **code**: Sequential integer identifier starting from 1 (as string)
+- **is_test**: Optional boolean flag indicating test events (only appears when true)
 
 ## How It Works
 
