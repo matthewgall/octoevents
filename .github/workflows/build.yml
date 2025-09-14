@@ -46,9 +46,10 @@ jobs:
       
     - name: Run go fmt check
       run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+        unformatted=$(gofmt -s -l .)
+        if [ -n "$unformatted" ]; then
           echo "Code is not properly formatted:"
-          gofmt -s -l .
+          echo "$unformatted"
           exit 1
         fi
       shell: bash
