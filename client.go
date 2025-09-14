@@ -60,9 +60,9 @@ func NewAuthenticatedClient(apiKey, graphqlURL string) *AuthenticatedClient {
 			DisableCompression:  false,
 		},
 	}
-	
+
 	client := graphql.NewClient(graphqlURL, graphql.WithHTTPClient(httpClient))
-	
+
 	return &AuthenticatedClient{
 		apiKey:     apiKey,
 		graphqlURL: graphqlURL,

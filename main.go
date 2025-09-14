@@ -74,8 +74,8 @@ type EventConnection struct {
 }
 
 type GraphQLResponse struct {
-	IsEnrolledInCustomerFlexibilityCampaign    bool            `json:"isEnrolledInCustomerFlexibilityCampaign"`
-	CustomerFlexibilityCampaignEvents          EventConnection `json:"customerFlexibilityCampaignEvents"`
+	IsEnrolledInCustomerFlexibilityCampaign bool            `json:"isEnrolledInCustomerFlexibilityCampaign"`
+	CustomerFlexibilityCampaignEvents       EventConnection `json:"customerFlexibilityCampaignEvents"`
 }
 
 const (
@@ -86,7 +86,7 @@ const (
 func main() {
 	// Parse flags first to get log format preference
 	flag.Parse()
-	
+
 	// Setup logging based on format preference
 	setupLogging()
 
@@ -108,7 +108,7 @@ func main() {
 
 func setupLogging() {
 	var handler slog.Handler
-	
+
 	format := *logFormat
 	if format == "auto" {
 		format = detectLogFormat()
@@ -134,16 +134,15 @@ func setupLogging() {
 
 func detectLogFormat() string {
 	// Use JSON format in GitHub Actions or other CI environments
-	if os.Getenv("GITHUB_ACTIONS") == "true" || 
-	   os.Getenv("CI") == "true" ||
-	   os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+	if os.Getenv("GITHUB_ACTIONS") == "true" ||
+		os.Getenv("CI") == "true" ||
+		os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
 		return "json"
 	}
-	
+
 	// Use text format for local development
 	return "text"
 }
-
 
 func fetchAndUpdateEvents(config *Config) error {
 	// Always load existing events first - this is our safety net
@@ -195,10 +194,10 @@ func fetchAndUpdateEvents(config *Config) error {
 
 	// Final safety check: never write fewer events than we started with
 	if len(finalEvents) < len(existingEvents) {
-		slog.Warn("Refusing to write fewer events than existing", 
-			"existing", len(existingEvents), 
+		slog.Warn("Refusing to write fewer events than existing",
+			"existing", len(existingEvents),
 			"new", len(finalEvents))
-		return fmt.Errorf("safety check failed: would reduce event count from %d to %d", 
+		return fmt.Errorf("safety check failed: would reduce event count from %d to %d",
 			len(existingEvents), len(finalEvents))
 	}
 
@@ -207,13 +206,13 @@ func fetchAndUpdateEvents(config *Config) error {
 		return errors.Wrap(err, "failed to save events")
 	}
 
-	slog.Info("Successfully updated events", 
-		"file", config.OutputFile, 
+	slog.Info("Successfully updated events",
+		"file", config.OutputFile,
 		"total_count", len(finalEvents),
 		"existing_count", len(existingEvents),
 		"octopus_events", len(octopusEvents),
 		"external_events", len(externalEvents),
-		"new_events_added", len(finalEvents) - len(existingEvents))
+		"new_events_added", len(finalEvents)-len(existingEvents))
 
 	return nil
 }
@@ -323,7 +322,7 @@ func loadExistingEvents(filename string) ([]Event, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse end time: %w", err)
 		}
-		
+
 		event := Event{
 			Code:    outputEvent.Code,
 			StartAt: startTime,
@@ -375,7 +374,7 @@ func mergeEvents(existing, new []Event) []Event {
 
 func convertToOutputFormat(events []Event) OutputData {
 	outputEvents := make([]OutputEvent, 0, len(events))
-	
+
 	for _, event := range events {
 		outputEvent := OutputEvent{
 			Start:  event.StartAt.Format("2006-01-02T15:04:05.000Z"),
@@ -385,7 +384,7 @@ func convertToOutputFormat(events []Event) OutputData {
 		}
 		outputEvents = append(outputEvents, outputEvent)
 	}
-	
+
 	return OutputData{Data: outputEvents}
 }
 
@@ -407,7 +406,7 @@ func fetchDavidKendallData() ([]Event, error) {
 	// Add conditional request headers for caching
 	req.Header.Set("User-Agent", GetUserAgent())
 	req.Header.Set("Accept", "application/json")
-	
+
 	// Check if we have cached ETag
 	if etag := getCachedETag(); etag != "" {
 		req.Header.Set("If-None-Match", etag)
@@ -462,7 +461,7 @@ func fetchDavidKendallData() ([]Event, error) {
 
 	// Cache the events
 	cacheEvents(events)
-	
+
 	slog.Info("Fetched events from David Kendall's API", "count", len(events))
 	return events, nil
 }
