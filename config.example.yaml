@@ -1,0 +1,4 @@
+accountNumber: A-12345678
+meterPointID: "1000000000000"
+apiKey: sk_live_your_api_key_here
+outputFile: free_electricity.json
