@@ -44,7 +44,7 @@ jobs:
     - name: Run go vet
       run: go vet ./...
       
-    - name: Run go fmt check
+    - name: Run go fmt check (Unix)
       run: |
         unformatted=$(gofmt -s -l .)
         if [ -n "$unformatted" ]; then
@@ -53,3 +53,15 @@ jobs:
           exit 1
         fi
       shell: bash
+      if: runner.os != 'Windows'
+      
+    - name: Run go fmt check (Windows)
+      run: |
+        $unformatted = gofmt -s -l .
+        if ($unformatted) {
+          Write-Host "Code is not properly formatted:"
+          Write-Host $unformatted
+          exit 1
+        }
+      shell: pwsh
+      if: runner.os == 'Windows'
