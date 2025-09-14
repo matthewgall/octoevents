@@ -1,0 +1,18 @@
+# Binaries for programs and plugins
+octoevent
+octoevent.txt
+
+# Configuration files (contains sensitive API keys)
+config.yaml
+config.yml
+config.*.yaml
+config.*.yml
+*.config.yaml
+*.config.yml
+
+# Cache directory
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db

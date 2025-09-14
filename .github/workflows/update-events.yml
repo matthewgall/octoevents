@@ -1,0 +1,95 @@
+name: Update Free Electricity Events
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  update-events:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+        
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+          
+    - name: Cache external API data
+      uses: actions/cache@v4
+      with:
+        path: .cache
+        key: ${{ runner.os }}-api-cache-${{ steps.date.outputs.date }}
+        restore-keys: |
+          ${{ runner.os }}-api-cache-
+          
+    - name: Download dependencies
+      run: go mod download
+      
+    - name: Run event updater
+      env:
+        OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+        ACCOUNT_NUMBER: ${{ secrets.ACCOUNT_NUMBER }}
+        METER_POINT_ID: ${{ secrets.METER_POINT_ID }}
+      run: go run .
+      
+    - name: Check for changes
+      id: git-check
+      run: |
+        git diff --exit-code free_electricity.json || echo "changes=true" >> $GITHUB_OUTPUT
+        
+    - name: Commit and push if changed
+      if: steps.git-check.outputs.changes == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add free_electricity.json
+        git commit -m "Update free electricity events - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        git push
+        
+    - name: Setup Pages
+      if: steps.git-check.outputs.changes == 'true'
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      if: steps.git-check.outputs.changes == 'true'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '.'
+        
+  deploy:
+    needs: update-events
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

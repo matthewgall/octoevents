@@ -1,0 +1,233 @@
+<!--
+Copyright 2025 Matthew Gall <me@matthewgall.dev>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Octopus Energy Free Electricity Events API</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .api-endpoint {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .data-source {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .tech-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .json-example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        pre {
+            margin: 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .update-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔌 Octopus Energy Free Electricity Events</h1>
+        <p>Real-time API for tracking free electricity events in the UK</p>
+    </div>
+
+    <div class="section">
+        <h2>API Endpoint</h2>
+        <div class="api-endpoint">
+            <strong>GET</strong> https://matthewgall.github.io/octoevents/free_electricity.json
+        </div>
+        <p>This API provides a comprehensive list of Octopus Energy's free electricity events, automatically updated every hour.</p>
+    </div>
+
+    <div class="section">
+        <h2>Data Sources</h2>
+        <div class="data-source">
+            <h4>🔗 David S Kendall's API</h4>
+            <p>Historical events from the maintainer of the Home Assistant Octopus Energy integration</p>
+            <small><a href="https://oe-api.davidskendall.co.uk/free_electricity.json">oe-api.davidskendall.co.uk/free_electricity.json</a></small>
+        </div>
+        <div class="data-source">
+            <h4>🦄 Octopus Energy GraphQL API</h4>
+            <p>Real-time event data fetched directly from Octopus Energy's official GraphQL API</p>
+            <small>api.octopus.energy/v1/graphql/</small>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Data Format</h2>
+        <p>The API returns a JSON object with a <code>data</code> array containing event objects:</p>
+        <div class="json-example">
+            <pre>{
+  "data": [
+    {
+      "start": "2024-08-15T12:00:00.000Z",
+      "end": "2024-08-15T13:00:00.000Z",
+      "code": "1"
+    },
+    {
+      "start": "2024-11-27T11:00:00.000Z",
+      "end": "2024-11-27T12:00:00.000Z",
+      "code": "9",
+      "is_test": true
+    }
+  ]
+}</pre>
+        </div>
+        
+        <h3>Fields</h3>
+        <ul>
+            <li><strong>start</strong>: Event start time in UTC (ISO 8601 format)</li>
+            <li><strong>end</strong>: Event end time in UTC (ISO 8601 format)</li>
+            <li><strong>code</strong>: Sequential integer identifier starting from 1</li>
+            <li><strong>is_test</strong>: Optional boolean flag indicating test events</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>How It's Built</h2>
+        <div class="tech-stack">
+            <span class="tech-badge">Go</span>
+            <span class="tech-badge">GitHub Actions</span>
+            <span class="tech-badge">GraphQL</span>
+            <span class="tech-badge">GitHub Pages</span>
+            <span class="tech-badge">YAML Config</span>
+        </div>
+        
+        <h3>Architecture</h3>
+        <ol>
+            <li><strong>Data Fetching</strong>: Go application authenticates with Octopus Energy API using JWT tokens</li>
+            <li><strong>Data Merging</strong>: Combines historical events from David Kendall's API with new events from Octopus GraphQL</li>
+            <li><strong>Deduplication</strong>: Events are deduplicated using start+end time as unique identifiers</li>
+            <li><strong>Sequential Coding</strong>: Events are assigned sequential integer codes for easy reference</li>
+            <li><strong>Automated Updates</strong>: GitHub Actions runs hourly to fetch and publish new events</li>
+            <li><strong>GitHub Pages</strong>: Data is served via GitHub Pages for high availability</li>
+        </ol>
+    </div>
+
+    <div class="update-info">
+        <h3>🔄 Update Schedule</h3>
+        <p>This data is automatically updated <strong>every hour</strong> via GitHub Actions. The service ensures:</p>
+        <ul>
+            <li>New events are added automatically</li>
+            <li>Historical events are never deleted</li>
+            <li>Empty files are never published (fail-safe protection)</li>
+            <li>Data consistency is maintained across updates</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Source Code</h2>
+        <p>This service is open source and available on GitHub:</p>
+        <div class="api-endpoint">
+            <a href="https://github.com/matthewgall/octoevents">https://github.com/matthewgall/octoevents</a>
+        </div>
+        
+        <h3>Contributing</h3>
+        <p>Issues, feature requests, and pull requests are welcome! The project is designed to be:</p>
+        <ul>
+            <li>Reliable and fail-safe</li>
+            <li>Easy to configure and deploy</li>
+            <li>Compatible with existing integrations</li>
+            <li>Well-documented and maintainable</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Acknowledgments</h2>
+        <p>Special thanks to <strong>David S Kendall</strong> for maintaining the Home Assistant Octopus Energy integration and providing the original data source that inspired this project.</p>
+    </div>
+
+    <footer style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; color: #666;">
+        <p>Built with ❤️ by <a href="https://github.com/matthewgall">Matthew Gall</a> | Last updated: <span id="lastUpdated"></span></p>
+    </footer>
+
+    <script>
+        // Show last updated time
+        fetch('free_electricity.json')
+            .then(response => response.json())
+            .then(data => {
+                if (data.data && data.data.length > 0) {
+                    // Find the most recent event to show freshness
+                    const lastEvent = data.data[data.data.length - 1];
+                    document.getElementById('lastUpdated').textContent = 'Contains ' + data.data.length + ' events';
+                }
+            })
+            .catch(error => {
+                document.getElementById('lastUpdated').textContent = 'Data loading...';
+            });
+    </script>
+</body>
+</html>
