@@ -79,11 +79,9 @@ jobs:
         git push
         
     - name: Setup Pages
-      if: steps.git-check.outputs.changes == 'true'
       uses: actions/configure-pages@v4
       
     - name: Upload artifact
-      if: steps.git-check.outputs.changes == 'true'
       uses: actions/upload-pages-artifact@v3
       with:
         path: '.'
