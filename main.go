@@ -146,6 +146,79 @@ func detectLogFormat() string {
 
 
 func fetchAndUpdateEvents(config *Config) error {
+	// Always load existing events first - this is our safety net
+	existingEvents, err := loadExistingEvents(config.OutputFile)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "failed to load existing events")
+	}
+
+	slog.Info("Loaded existing events", "count", len(existingEvents))
+
+	// Try to fetch new events from Octopus GraphQL API
+	octopusEvents, err := fetchOctopusEvents(config)
+	if err != nil {
+		slog.Warn("Failed to fetch Octopus events, using existing data only", "error", err)
+		octopusEvents = []Event{} // Empty slice, not nil
+	} else {
+		slog.Info("Fetched events from Octopus API", "count", len(octopusEvents))
+	}
+
+	// Try to fetch David Kendall's data
+	externalEvents, err := fetchDavidKendallData()
+	if err != nil {
+		slog.Warn("Failed to fetch David Kendall's data, using cached/existing only", "error", err)
+		externalEvents = []Event{} // Empty slice, not nil
+	}
+
+	// Start with existing events as the base (never lose data)
+	allEvents := make([]Event, len(existingEvents))
+	copy(allEvents, existingEvents)
+
+	// Merge in external events if we got any
+	if len(externalEvents) > 0 {
+		allEvents = mergeEvents(allEvents, externalEvents)
+	}
+
+	// Merge in new Octopus events if we got any
+	if len(octopusEvents) > 0 {
+		allEvents = mergeEvents(allEvents, octopusEvents)
+	}
+
+	// Check if we actually have any changes
+	if !hasChanges(existingEvents, allEvents) {
+		slog.Info("No new events detected, skipping file update")
+		return nil
+	}
+
+	// Assign sequential codes to the final merged set
+	finalEvents := assignSequentialCodes(allEvents)
+
+	// Final safety check: never write fewer events than we started with
+	if len(finalEvents) < len(existingEvents) {
+		slog.Warn("Refusing to write fewer events than existing", 
+			"existing", len(existingEvents), 
+			"new", len(finalEvents))
+		return fmt.Errorf("safety check failed: would reduce event count from %d to %d", 
+			len(existingEvents), len(finalEvents))
+	}
+
+	// Save the updated events
+	if err := saveEvents(finalEvents, config.OutputFile); err != nil {
+		return errors.Wrap(err, "failed to save events")
+	}
+
+	slog.Info("Successfully updated events", 
+		"file", config.OutputFile, 
+		"total_count", len(finalEvents),
+		"existing_count", len(existingEvents),
+		"octopus_events", len(octopusEvents),
+		"external_events", len(externalEvents),
+		"new_events_added", len(finalEvents) - len(existingEvents))
+
+	return nil
+}
+
+func fetchOctopusEvents(config *Config) ([]Event, error) {
 	client := NewAuthenticatedClient(config.APIKey, graphqlEndpoint)
 
 	query := `
@@ -192,50 +265,40 @@ func fetchAndUpdateEvents(config *Config) error {
 	req.Var("meterPointId", config.MeterPointID)
 	req.Var("campaignSlug", "free_electricity")
 
-
 	var response GraphQLResponse
 	if err := client.Run(context.Background(), req, &response); err != nil {
-		return errors.Wrap(err, "failed to execute GraphQL query")
+		return nil, errors.Wrap(err, "failed to execute GraphQL query")
 	}
 
-	newEvents := make([]Event, 0, len(response.CustomerFlexibilityCampaignEvents.Edges))
+	events := make([]Event, 0, len(response.CustomerFlexibilityCampaignEvents.Edges))
 	for _, edge := range response.CustomerFlexibilityCampaignEvents.Edges {
-		newEvents = append(newEvents, edge.Node)
+		events = append(events, edge.Node)
 	}
 
-	if len(newEvents) == 0 {
-		return fmt.Errorf("no events received from API - refusing to update file")
+	return events, nil
+}
+
+func hasChanges(existing, new []Event) bool {
+	if len(existing) != len(new) {
+		return true
 	}
 
-	existingEvents, err := loadExistingEvents(config.OutputFile)
-	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "failed to load existing events")
+	// Create a map of existing events by their unique key (start+end time)
+	existingMap := make(map[string]bool)
+	for _, event := range existing {
+		key := event.StartAt.Format(time.RFC3339) + "_" + event.EndAt.Format(time.RFC3339)
+		existingMap[key] = true
 	}
 
-	// Fetch David Kendall's data to merge
-	externalEvents, err := fetchDavidKendallData()
-	if err != nil {
-		slog.Warn("Failed to fetch David Kendall's data", "error", err)
-		externalEvents = []Event{}
+	// Check if any new events are missing from existing
+	for _, event := range new {
+		key := event.StartAt.Format(time.RFC3339) + "_" + event.EndAt.Format(time.RFC3339)
+		if !existingMap[key] {
+			return true // Found a new event
+		}
 	}
 
-	// Merge all events
-	allExistingEvents := mergeEvents(existingEvents, externalEvents)
-	mergedEvents := mergeEvents(allExistingEvents, newEvents)
-
-	// Assign sequential codes
-	mergedEvents = assignSequentialCodes(mergedEvents)
-
-	if err := saveEvents(mergedEvents, config.OutputFile); err != nil {
-		return errors.Wrap(err, "failed to save events")
-	}
-
-	slog.Info("Successfully updated events", 
-		"file", config.OutputFile, 
-		"count", len(mergedEvents),
-		"new_events", len(newEvents),
-		"external_events", len(externalEvents))
-	return nil
+	return false // No changes detected
 }
 
 func loadExistingEvents(filename string) ([]Event, error) {
