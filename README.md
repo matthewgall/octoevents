@@ -35,8 +35,16 @@ export ACCOUNT_NUMBER="A-12345678"
 export METER_POINT_ID="1000000000000"
 go run .
 
-# Custom output file
+# Custom output file and logging
 go run . -key sk_live_your_api_key_here -account A-12345678 -meter 1000000000000 -output events.json
+
+# Log format options
+go run . -config config.yaml -log-format text  # Human-readable logs
+go run . -config config.yaml -log-format json  # Structured JSON logs  
+go run . -config config.yaml -log-format auto  # Auto-detect (default)
+
+# Show version
+go run . -version
 ```
 
 ### Configuration File
@@ -130,6 +138,29 @@ To enable GitHub Pages deployment:
 1. Go to your repository Settings → Pages
 2. Set Source to "GitHub Actions"  
 3. The workflow will automatically deploy after each data update
+
+## Building and Versioning
+
+### Development Builds
+```bash
+go build .                    # Version: git commit hash or "dev"
+go run . -version             # Show current version
+```
+
+### Release Builds
+```bash
+# Build with explicit version
+go build -ldflags "-X main.buildVersion=1.0.0" -o octoevents .
+
+# Build with version and commit
+go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildCommit=$(git rev-parse HEAD)" .
+```
+
+### Version Detection Strategy
+1. **Explicit version** via `-ldflags -X main.buildVersion=...` (highest priority)
+2. **Git commit hash** from build info (auto-detected)
+3. **Explicit commit** via `-ldflags -X main.buildCommit=...`
+4. **Fallback** to "dev" for local development
 
 ## Performance Features
 

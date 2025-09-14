@@ -39,14 +39,13 @@ var (
 	meterPointID  = flag.String("meter", "", "Meter Point ID (MPAN)")
 	apiKey        = flag.String("key", "", "Octopus Energy API Key")
 	outputFile    = flag.String("output", "free_electricity.json", "Output file path")
+	logFormat     = flag.String("log-format", "auto", "Log format: 'json', 'text', or 'auto' (detects environment)")
 	version       = flag.Bool("version", false, "Show version information")
 )
 
 func loadConfig() (*Config, error) {
-	flag.Parse()
-
 	if *version {
-		fmt.Println("octoevents v1.0.0")
+		fmt.Printf("octoevents %s\n", GetVersion())
 		os.Exit(0)
 	}
 

@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -83,11 +84,11 @@ const (
 )
 
 func main() {
-	// Setup structured logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
+	// Parse flags first to get log format preference
+	flag.Parse()
+	
+	// Setup logging based on format preference
+	setupLogging()
 
 	config, err := loadConfig()
 	if err != nil {
@@ -95,7 +96,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("Starting octoevents", "version", "1.0.0")
+	slog.Info("Starting octoevents", "version", GetVersion())
 
 	if err := fetchAndUpdateEvents(config); err != nil {
 		slog.Error("Failed to fetch and update events", "error", err)
@@ -103,6 +104,44 @@ func main() {
 	}
 
 	slog.Info("Successfully completed event update")
+}
+
+func setupLogging() {
+	var handler slog.Handler
+	
+	format := *logFormat
+	if format == "auto" {
+		format = detectLogFormat()
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+
+	switch format {
+	case "json":
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	case "text":
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	default:
+		// Default to text for unknown formats
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+}
+
+func detectLogFormat() string {
+	// Use JSON format in GitHub Actions or other CI environments
+	if os.Getenv("GITHUB_ACTIONS") == "true" || 
+	   os.Getenv("CI") == "true" ||
+	   os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		return "json"
+	}
+	
+	// Use text format for local development
+	return "text"
 }
 
 
@@ -303,7 +342,7 @@ func fetchDavidKendallData() ([]Event, error) {
 	}
 
 	// Add conditional request headers for caching
-	req.Header.Set("User-Agent", "OctoEvents/1.0")
+	req.Header.Set("User-Agent", GetUserAgent())
 	req.Header.Set("Accept", "application/json")
 	
 	// Check if we have cached ETag
