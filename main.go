@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/machinebox/graphql"
@@ -82,6 +83,12 @@ const (
 	graphqlEndpoint = "https://api.octopus.energy/v1/graphql/"
 	davidKendallAPI = "https://oe-api.davidskendall.co.uk/free_electricity.json"
 )
+
+var builderPool = sync.Pool{
+	New: func() interface{} {
+		return &strings.Builder{}
+	},
+}
 
 func main() {
 	// Parse flags first to get log format preference
@@ -153,20 +160,46 @@ func fetchAndUpdateEvents(config *Config) error {
 
 	slog.Info("Loaded existing events", "count", len(existingEvents))
 
-	// Try to fetch new events from Octopus GraphQL API
-	octopusEvents, err := fetchOctopusEvents(config)
-	if err != nil {
-		slog.Warn("Failed to fetch Octopus events, using existing data only", "error", err)
-		octopusEvents = []Event{} // Empty slice, not nil
-	} else {
-		slog.Info("Fetched events from Octopus API", "count", len(octopusEvents))
+	// Fetch events from both APIs concurrently
+	type fetchResult struct {
+		events []Event
+		source string
+		err    error
 	}
 
-	// Try to fetch David Kendall's data
-	externalEvents, err := fetchDavidKendallData()
-	if err != nil {
-		slog.Warn("Failed to fetch David Kendall's data, using cached/existing only", "error", err)
-		externalEvents = []Event{} // Empty slice, not nil
+	results := make(chan fetchResult, 2)
+
+	// Fetch Octopus events
+	go func() {
+		events, err := fetchOctopusEvents(config)
+		results <- fetchResult{events: events, source: "octopus", err: err}
+	}()
+
+	// Fetch David Kendall's data
+	go func() {
+		events, err := fetchDavidKendallData()
+		results <- fetchResult{events: events, source: "david_kendall", err: err}
+	}()
+
+	// Collect results
+	var octopusEvents, externalEvents []Event
+	for i := 0; i < 2; i++ {
+		result := <-results
+		if result.err != nil {
+			slog.Warn("Failed to fetch events", "source", result.source, "error", result.err)
+			if result.source == "octopus" {
+				octopusEvents = []Event{}
+			} else {
+				externalEvents = []Event{}
+			}
+		} else {
+			slog.Info("Fetched events", "source", result.source, "count", len(result.events))
+			if result.source == "octopus" {
+				octopusEvents = result.events
+			} else {
+				externalEvents = result.events
+			}
+		}
 	}
 
 	// Start with existing events as the base (never lose data)
@@ -339,24 +372,24 @@ func mergeEvents(existing, new []Event) []Event {
 	capacity := len(existing) + len(new)
 	eventMap := make(map[string]Event, capacity)
 
-	// Use string builder for more efficient key generation
-	var keyBuilder strings.Builder
-	keyBuilder.Grow(64) // Pre-allocate for typical RFC3339 timestamp pairs
-
 	for _, event := range existing {
+		keyBuilder := builderPool.Get().(*strings.Builder)
 		keyBuilder.Reset()
 		keyBuilder.WriteString(event.StartAt.Format(time.RFC3339))
 		keyBuilder.WriteByte('_')
 		keyBuilder.WriteString(event.EndAt.Format(time.RFC3339))
 		eventMap[keyBuilder.String()] = event
+		builderPool.Put(keyBuilder)
 	}
 
 	for _, event := range new {
+		keyBuilder := builderPool.Get().(*strings.Builder)
 		keyBuilder.Reset()
 		keyBuilder.WriteString(event.StartAt.Format(time.RFC3339))
 		keyBuilder.WriteByte('_')
 		keyBuilder.WriteString(event.EndAt.Format(time.RFC3339))
 		eventMap[keyBuilder.String()] = event
+		builderPool.Put(keyBuilder)
 	}
 
 	// Pre-allocate slice with exact capacity

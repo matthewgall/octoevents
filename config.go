@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log/slog"
 	"os"
 
@@ -93,7 +92,7 @@ func loadConfig() (*Config, error) {
 }
 
 func loadConfigFromFile(filename string, config *Config) error {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
