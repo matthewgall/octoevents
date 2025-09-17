@@ -1,6 +1,8 @@
 # Binaries for programs and plugins
 octoevent
-octoevent.txt
+octoevents
+octoevent.exe
+octoevents.exe
 
 # Configuration files (contains sensitive API keys)
 config.yaml
