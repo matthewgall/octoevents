@@ -1,6 +1,6 @@
 module github.com/matthewgall/octoevents
 
-go 1.21
+go 1.23
 
 require (
 	github.com/machinebox/graphql v0.2.2

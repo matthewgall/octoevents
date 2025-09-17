@@ -12,6 +12,9 @@ config.*.yml
 *.config.yaml
 *.config.yml
 
+# Coverage tests
+coverage.*
+
 # Cache directory
 .cache/
 
