@@ -19,6 +19,8 @@ concurrency:
 jobs:
   update-events:
     runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.git-check.outputs.changes }}
     
     steps:
     - name: Checkout repository
@@ -79,15 +81,18 @@ jobs:
         git push
         
     - name: Setup Pages
+      if: steps.git-check.outputs.changes == 'true'
       uses: actions/configure-pages@v5
       
     - name: Upload artifact
+      if: steps.git-check.outputs.changes == 'true'
       uses: actions/upload-pages-artifact@v4
       with:
         path: '.'
         
   deploy:
     needs: update-events
+    if: needs.update-events.outputs.changes == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
